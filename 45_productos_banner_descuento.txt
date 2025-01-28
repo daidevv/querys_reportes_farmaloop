@@ -1,0 +1,23 @@
+SELECT DISTINCT
+fecha_creacion transaccion_fecha,
+fecha_facturacion facturacion_fecha,
+transaccion_anio facturacion_anio,
+transaccion_mes facturacion_mes,
+transaccion_dia facturacion_dia,
+producto_sku sku,
+producto_descripcion nombre_producto,
+producto_categoria categoria,
+producto_vencimiento vencimiento,
+comercial_unidades unidades,
+comercial_costo_unitario costo_unitario,
+costo_maestro costo_maestro,
+diferencia,
+comercial_pvp_unitario_bruto pvp_unitario_bruto,
+comercial_ingreso_total_neto ingreso_total_neto,
+comercial_ingreso_total_bruto ingreso_total_brutp,
+comercial_utilidad_total_neta utilidad_total_neta,
+comercial_margen,
+comercial_dcto_total descuento_total
+FROM "base_de_datos_de_la_empresa"."tabla_o_vista" 
+WHERE comercial_pvp_unitario_bruto IN (1000, 3000, 5000) 
+AND date_parse(fecha_creacion, '%Y-%m-%d') >= date '2024-10-14'

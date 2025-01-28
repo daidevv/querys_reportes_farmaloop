@@ -1,0 +1,28 @@
+CREATE OR REPLACE VIEW "comercial_reportes_grupos" AS 
+WITH
+  data_calculada AS (
+   SELECT DISTINCT
+     cgas.sku
+   , CAST(cgas.total_stock AS INTEGER) total_stock
+   , COALESCE(CAST(ccv.ordenes_con_el_producto_durante_semana AS INTEGER), 0) ordenes
+   , COALESCE(CAST(clg.total_sessions AS INTEGER), 0) clicks
+   , (CASE WHEN ((clg.total_sessions > 0) AND (ccv.ordenes_con_el_producto_durante_semana > 0)) THEN REPLACE(CAST(ROUND((ccv.ordenes_con_el_producto_durante_semana / CAST(clg.total_sessions AS DOUBLE)), 4) AS VARCHAR), '.', ',') ELSE '0' END) tasa_conversion
+   , (CASE WHEN ((clg.total_sessions > 0) AND (ccv.ordenes_con_el_producto_durante_semana > 0)) THEN ROUND((ccv.ordenes_con_el_producto_durante_semana / CAST(clg.total_sessions AS DOUBLE)), 4) ELSE 0 END) tasa_conversion_numeric
+   , DATE_PARSE(cgas.partition_date_label, '%Y-%m-%d') fecha_fin_semana
+   FROM
+     (("base_de_datos_de_la_empresa"."tabla_o_vista" cgas
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" clg ON ((clg.sku = cgas.sku) AND (DATE_PARSE(clg.week_end, '%Y-%m-%d') = DATE_PARSE(cgas.partition_date_label, '%Y-%m-%d'))))
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" ccv ON ((cgas.sku = ccv.producto_sku) AND (DATE_PARSE(cgas.partition_date_label, '%Y-%m-%d') = DATE_PARSE(ccv.fecha_fin_semana, '%Y-%m-%d'))))
+) 
+SELECT
+  CONCAT('sem-', CAST((CASE WHEN (day_of_month(date_add('day', -6, fecha_fin_semana)) <= ((7 - day_of_week(date_parse(concat(date_format(date_add('day', -6, fecha_fin_semana), '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) THEN 1 ELSE CAST((ceil(((day_of_month(date_add('day', -6, fecha_fin_semana)) - ((7 - day_of_week(date_parse(concat(date_format(date_add('day', -6, fecha_fin_semana), '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) / 7E0)) + 1) AS INTEGER) END) AS VARCHAR), '-', LOWER(DATE_FORMAT(CAST(date_add('day', -6, fecha_fin_semana) AS DATE), '%b'))) semana
+, sku
+, total_stock inventario
+, ordenes "ventas"
+, clicks "visitas al producto"
+, tasa_conversion "tasa conversion"
+, (CASE WHEN ((total_stock = 0) AND (clicks > 0) AND (ordenes = 0)) THEN 'Grupo 1' WHEN ((total_stock > 0) AND (clicks = 0) AND (ordenes = 0)) THEN 'Grupo 2' WHEN ((total_stock > 0) AND (clicks > 0) AND (ordenes = 0)) THEN 'Grupo 3' WHEN ((total_stock > 0) AND (clicks > 0) AND (tasa_conversion_numeric <= 2)) THEN 'Grupo 4' WHEN ((total_stock > 0) AND (clicks > 0) AND (tasa_conversion_numeric > 2)) THEN 'Grupo 5' ELSE 'Grupo 0' END) grupo
+FROM
+  data_calculada
+WHERE (date_add('day', -6, fecha_fin_semana) >= DATE '2024-10-07')
+

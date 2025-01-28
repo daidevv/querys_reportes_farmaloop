@@ -1,0 +1,44 @@
+CREATE OR REPLACE VIEW "operaciones_control_ventas_y_stock_B2B" AS 
+
+WITH info_base AS (
+  SELECT
+    date_format(cast(fecha_creacion AS timestamp), '%d-%m-%Y') AS fecha_compra,  
+    clasificador1 AS canal,
+    transaccion_n_orden AS nro_orden, 
+    producto_descripcion AS nombre_producto,
+    producto_sku AS sku,
+    comercial_ingreso_total_bruto AS total_ventas
+  FROM "base_de_datos_de_la_empresa"."tabla_o_vista" cv
+  WHERE clasificador1 = 'B2B'
+    AND fecha_creacion BETWEEN date_format(date_add('month', -1, current_date), '%Y-%m-%d') AND date_format(current_date, '%Y-%m-%d')
+  
+),
+info_producto AS (
+  SELECT DISTINCT
+    sku,
+    SUM(stock) AS stock_total
+  FROM "base_de_datos_de_la_empresa"."vista_o_tabla"
+  GROUP BY
+    sku
+)
+
+SELECT
+  ib.fecha_compra,  
+  ib.canal,
+  ib.nro_orden,
+  array_join(array_agg(
+    concat_ws(' ', ib.nombre_producto, concat('(Sku: ', ib.sku, ')'))
+  ), ', ') AS lista_productos_comprados,
+  array_join(array_agg(
+    concat_ws(' ', ib.nombre_producto, concat(' (stock: ', cast(ip.stock_total AS varchar), ')'))
+  ), ', ') AS stock_actual_producto,
+  SUM(ib.total_ventas) AS total_ventas
+FROM info_base ib
+JOIN info_producto ip
+  ON ib.sku = ip.sku
+GROUP BY
+  ib.fecha_compra,
+  ib.canal,
+  ib.nro_orden
+  
+ORDER BY fecha_compra DESC;

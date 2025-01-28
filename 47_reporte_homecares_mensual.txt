@@ -1,0 +1,18 @@
+CREATE OR REPLACE VIEW "reporte_homecares_mensual" AS 
+SELECT DISTINCT
+  facturacion_fecha "facturacion fecha"
+, substr(facturacion_fecha, 9, 2) "facturacion dia"
+, substr(facturacion_fecha, 6, 2) "facturacion mes"
+, substr(facturacion_fecha, 1, 4) "facturacion año"
+, order_id "orden nro"
+, nombre_cliente "cliente nombre"
+, identificador_rut "cliente documento tributario"
+, sku "producto sku"
+, nombre_del_producto "producto nombre"
+, precio_de_venta_pvp "precio venta"
+, cantidad_producto cantidad
+, precio_total "precio total"
+FROM
+  "tabla_o_vista"
+WHERE ((facturacion_fecha IS NOT NULL) AND (facturacion_fecha <> '') AND (identificador_rut IN ('76.XXX.XXX-0', '7XXXXXXX-0', '76.XXX.XXX-2', '7XXXXXXX-2', '7XXXXXXX-6', '76.XXX.XXX-6', '76.XXX.XXX-0', '76XXXXXX-0', '76XXXXXX-3', '76.XXX.XXX-3', '77.XXX.XXX-1', '77XXXXXX-1', '77.XXX.XXX-6', '77XXXXXX-6', '7XXXXXXX', '77.XXX.XXX-4', '70XXXXXX-6', '70.XXX.XXX-6', '76XXXXXX-6', '76.XXX.XXX-6', '76XXXXXX-k', '76.XXX.XXX-k', '76.XXX.XXX-7', '76XXXXXX-7', '77.XXX.XXX-0', '7XXXXXX-0', '88.XXX.XXX-4', '8XXXXXX-4', '8XXXXXX-4', '88.XXX.XXX-4', '77.XXX.XXX-7', '77XXXXXX-7', '80XXXXXX-9', '80.XXX.XXX-9')) AND (CAST(facturacion_fecha AS DATE) BETWEEN date '2023-10-01' AND current_date) AND (sku <> '1'))
+ORDER BY "facturacion fecha" ASC

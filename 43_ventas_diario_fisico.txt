@@ -1,0 +1,11 @@
+CREATE OR REPLACE VIEW "ventas_diarias_fisico" AS 
+SELECT DISTINCT
+  date_format(date_parse(creacion_fecha, '%Y-%m-%d'), '%d-%m-%Y') fecha_creacion
+, creacion_mes
+, metodo_de_pago
+, SUM(precio_total) precio_total
+FROM
+  "base_de_datos_de_la_empresa"."tabla_o_vista"
+WHERE ((date_parse(creacion_fecha, '%Y-%m-%d') >= date_parse('2024-09-01', '%Y-%m-%d')) AND (date_parse(creacion_fecha, '%Y-%m-%d') <= current_date) AND (resumeorder_canal = U&'F\00EDsico'))
+GROUP BY date_format(date_parse(creacion_fecha, '%Y-%m-%d'), '%d-%m-%Y'), creacion_mes, metodo_de_pago
+ORDER BY date_format(date_parse(creacion_fecha, '%Y-%m-%d'), '%d-%m-%Y') DESC

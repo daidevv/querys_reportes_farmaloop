@@ -1,0 +1,199 @@
+CREATE OR REPLACE VIEW "qa_planeamiento_comercial_pbi" AS 
+WITH
+  clasificador_e_info AS (
+   SELECT DISTINCT
+     s.createdat createdat
+   , (CASE WHEN ((billing_emissiondate IS NOT NULL) AND (billing_emissiondate <> '')) THEN date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%d-%m-%Y') ELSE '01-01-1970' END) fecha_facturacion
+   , (CASE WHEN ((billing_emissiondate IS NOT NULL) AND (billing_emissiondate <> '')) THEN date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y-%m') ELSE '' END) facturacion_anio_mes
+   , (CASE WHEN ((billing_emissiondate IS NOT NULL) AND (billing_emissiondate <> '')) THEN concat((CASE date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%m') WHEN '01' THEN 'enero' WHEN '02' THEN 'febrero' WHEN '03' THEN 'marzo' WHEN '04' THEN 'abril' WHEN '05' THEN 'mayo' WHEN '06' THEN 'junio' WHEN '07' THEN 'julio' WHEN '08' THEN 'agosto' WHEN '09' THEN 'septiembre' WHEN '10' THEN 'octubre' WHEN '11' THEN 'noviembre' WHEN '12' THEN 'diciembre' END), '-', date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y')) ELSE '' END) facturacion_nombre_mes_anio
+   , (CASE WHEN ((billing_emissiondate IS NOT NULL) AND (billing_emissiondate <> '')) THEN concat((CASE date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%m') WHEN '01' THEN 'ene' WHEN '02' THEN 'feb' WHEN '03' THEN 'mar' WHEN '04' THEN 'abr' WHEN '05' THEN 'may' WHEN '06' THEN 'jun' WHEN '07' THEN 'jul' WHEN '08' THEN 'ago' WHEN '09' THEN 'sept' WHEN '10' THEN 'oct' WHEN '11' THEN 'nov' WHEN '12' THEN 'dic' END), '-', date_format(date_parse(substring(billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y')) ELSE '' END) facturacion_nombre_corto_mes_anio
+   , date_format(date_parse(substring(createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y-%m') creacion_anio_mes
+   , concat((CASE date_format(date_parse(substring(createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%m') WHEN '01' THEN 'enero' WHEN '02' THEN 'febrero' WHEN '03' THEN 'marzo' WHEN '04' THEN 'abril' WHEN '05' THEN 'mayo' WHEN '06' THEN 'junio' WHEN '07' THEN 'julio' WHEN '08' THEN 'agosto' WHEN '09' THEN 'septiembre' WHEN '10' THEN 'octubre' WHEN '11' THEN 'noviembre' WHEN '12' THEN 'diciembre' END), '-', date_format(date_parse(substring(createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y')) creacion_nombre_mes_anio
+   , concat((CASE date_format(date_parse(substring(createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%m') WHEN '01' THEN 'ene' WHEN '02' THEN 'feb' WHEN '03' THEN 'mar' WHEN '04' THEN 'abr' WHEN '05' THEN 'may' WHEN '06' THEN 'jun' WHEN '07' THEN 'jul' WHEN '08' THEN 'ago' WHEN '09' THEN 'sept' WHEN '10' THEN 'oct' WHEN '11' THEN 'nov' WHEN '12' THEN 'dic' END), '-', date_format(date_parse(substring(createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%Y')) creacion_nombre_corto_mes_anio
+   , (CASE WHEN ((s.billing_emissiondate IS NOT NULL) AND (s.billing_emissiondate <> '')) THEN date_parse(substr(s.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s') ELSE date_parse('1970-01-01T00:00:00', '%Y-%m-%dT%H:%i:%s') END) date_formato
+   , date_parse(concat(substr(s.createdat, 1, 19), 'Z'), '%Y-%m-%dT%H:%i:%sZ') date_formato_create
+   , s.billing_invoicecustomer_rut identificador_rut
+   , s.billing_invoicecustomer_name nombre_cliente
+   , s.billing_urlbilling url_facturacion
+   , (CASE WHEN (s.segurocomplementario_nombrebeneficiario = '') THEN 'No' ELSE 'Si' END) seguro_complementario
+   , s.id order_id
+   , s.productsorder_sku sku
+   , s.payments_wallet medio_de_pago
+   , s.payments_method metodo_de_pago
+   , s.payments_status estado_del_pago
+   , CAST(s.payments_amount AS INTEGER) monto_del_pago
+   , p.name nombre_del_producto
+   , s.statusorder estado_orden
+   , s.resumeorder_convenio convenio
+   , s.resumeorder_canal canal
+   , s.delivery_pricepaid
+   , CAST(s.productsorder_price AS INTEGER) precio_de_venta_pvp
+   , CAST(s.productsorder_qty AS INTEGER) cantidad_producto
+   , CAST((s.productsorder_price * s.productsorder_qty) AS INTEGER) total_price
+   , p.category categoria
+   , p.subcategory subcategoria
+   , s.resumeorder_canal
+   , s.extras_referrer
+   , s.resumeorder_clasification1
+   , s.resumeorder_clasification2
+   , s.resumeorder_clasification3
+   , s.resumeorder_clasification1_otro
+   , s.resumeorder_clasification2_otro
+   , s.resumeorder_clasification3_otro
+   , (CASE WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_canal = 'Call Center') AND (s.resumeorder_clasification1 = 'Prep/Pep')) THEN 'B2B2C' WHEN ((resumeorder_canal = 'Call Center') AND (resumeorder_clasification1 = 'WEB')) THEN 'B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification1 = 'B2B')) THEN 'B2B' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2_otro IN ('Nombre', 'Nombre')) AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2_otro IN ('Nombre', 'Nombre')) AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Nombre')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Clinica las Condes') AND (s.resumeorder_clasification3 = 'Fertilidad')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = 'Otros')) THEN 'B2B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Nombre') AND (s.resumeorder_clasification3 = U&'Nutrici\00F3n / Control de Peso')) THEN 'B2B2C' WHEN (CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) THEN 'B2C' WHEN ((CAST(from_iso8601_timestamp(s.createdat) AS timestamp) >= from_iso8601_timestamp('2024-07-23T08:00:00Z')) AND (s.resumeorder_clasification2 = 'Otros') AND (s.resumeorder_clasification3 = 'Nombre') AND (s.resumeorder_clasification2_otro IN ('Nombre', 'Nombre'))) THEN 'B2B2C' ELSE 'No especificado' END) BI_clasificador1
+   FROM
+     ("base_de_datos_de_la_empresa"."tabla_o_vista" s
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" p ON (s.productsorder_sku = p.sku))
+   WHERE ((s.payments_status IN ('Aprobado', 'Approved', '')) AND (NOT (s.statusorder IN ('CREADO', 'CANCELADO', 'RECETA_NO_VALIDA'))) AND ((CAST(partition_0 AS int) = year(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental'))) AND (CAST(partition_1 AS int) = month(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental')))) AND (CAST(partition_2 AS int) = day(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental'))))
+) 
+, resultado_final AS (
+   SELECT
+     createdat
+   , fecha_facturacion
+   , facturacion_anio_mes
+   , facturacion_nombre_mes_anio
+   , facturacion_nombre_corto_mes_anio
+   , date_format(date_formato, '%d') facturacion_dia
+   , date_format(date_formato, '%m') facturacion_mes
+   , date_format(date_formato, '%Y') facturacion_anio
+   , date_format(date_formato, '%H:%i:%s') facturacion_hora
+   , creacion_anio_mes
+   , creacion_nombre_mes_anio
+   , creacion_nombre_corto_mes_anio
+   , date_format(date_formato_create, '%d') creacion_dia
+   , date_format(date_formato_create, '%m') creacion_mes
+   , date_format(date_formato_create, '%Y') creacion_anio
+   , date_format(date_formato, '%H:%i:%s') creacion_hora
+   , concat(date_format(date_formato, '%d'), '/', date_format(date_formato, '%m'), '/', date_format(date_formato, '%Y')) facturacion_fecha_completa
+   , concat(date_format(date_formato_create, '%d'), '/', date_format(date_formato_create, '%m'), '/', date_format(date_formato, '%Y')) creacion_fecha_completa
+   , CAST((CASE WHEN (day_of_month(date_formato) <= ((7 - day_of_week(date_parse(concat(date_format(date_formato, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) THEN 1 ELSE (ceil(((day_of_month(date_formato) - ((7 - day_of_week(date_parse(concat(date_format(date_formato, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) / 7E0)) + 1) END) AS integer) facturacion_nro_semana
+   , CAST((CASE WHEN (day_of_month(date_formato) <= ((7 - day_of_week(date_parse(concat(date_format(date_formato, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) THEN 1 ELSE (ceil(((day_of_month(date_formato) - ((7 - day_of_week(date_parse(concat(date_format(date_formato_create, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) / 7E0)) + 1) END) AS integer) creacion_nro_semana
+   , CONCAT('Semana ', CAST(CAST((CASE WHEN (day_of_month(date_formato) <= ((7 - day_of_week(date_parse(concat(date_format(date_formato, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) THEN 1 ELSE (ceil(((day_of_month(date_formato) - ((7 - day_of_week(date_parse(concat(date_format(date_formato, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) / 7E0)) + 1) END) AS integer) AS varchar)) facturacion_nombre_semana
+   , CONCAT('Semana ', CAST(CAST((CASE WHEN (day_of_month(date_formato_create) <= ((7 - day_of_week(date_parse(concat(date_format(date_formato_create, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) THEN 1 ELSE (ceil(((day_of_month(date_formato_create) - ((7 - day_of_week(date_parse(concat(date_format(date_formato_create, '%Y-%m'), '-01'), '%Y-%m-%d'))) + 1)) / 7E0)) + 1) END) AS integer) AS varchar)) creacion_nombre_semana
+   , (CASE day_of_week(date_formato_create) WHEN 1 THEN '1 Lunes' WHEN 2 THEN '2 Martes' WHEN 3 THEN U&'3 Mi\00E9rcoles' WHEN 4 THEN '4 Jueves' WHEN 5 THEN '5 Viernes' WHEN 6 THEN U&'6 S\00E1bado' WHEN 7 THEN '7 Domingo' END) creacion_nombre_dia_semana
+   , (CASE day_of_week(date_formato) WHEN 1 THEN '1 Lunes' WHEN 2 THEN '2 Martes' WHEN 3 THEN U&'3 Mi\00E9rcoles' WHEN 4 THEN '4 Jueves' WHEN 5 THEN '5 Viernes' WHEN 6 THEN U&'6 S\00E1bado' WHEN 7 THEN '7 Domingo' END) facturacion_nombre_dia_semana
+   , identificador_rut
+   , nombre_cliente
+   , url_facturacion
+   , seguro_complementario
+   , order_id
+   , sku
+   , medio_de_pago
+   , metodo_de_pago
+   , estado_del_pago
+   , monto_del_pago
+   , nombre_del_producto
+   , CAST(delivery_pricepaid AS integer) delivery_pricepaid
+   , estado_orden
+   , convenio
+   , canal
+   , extras_referrer
+   , CAST(precio_de_venta_pvp AS integer) precio_de_venta_pvp
+   , CAST(cantidad_producto AS integer) cantidad_producto
+   , CAST(total_price AS integer) total_price
+   , categoria
+   , subcategoria
+   , resumeorder_canal
+   , resumeorder_clasification1
+   , resumeorder_clasification2
+   , resumeorder_clasification3
+   , resumeorder_clasification1_otro
+   , resumeorder_clasification2_otro
+   , resumeorder_clasification3_otro
+   , BI_clasificador1
+   , (CASE 
+    WHEN ((resumeorder_canal = U&'F\00EDsico') AND (resumeorder_clasification1 = 'Meson 1')) THEN 'WEB' 
+    WHEN ((resumeorder_canal = 'Call Center') AND (resumeorder_clasification1 = 'Farmacia')) THEN U&'F\00EDsico' 
+    WHEN ((BI_clasificador1 = 'B2B') AND (identificador_rut IN ('76.XXX.XXX-0', '767XXXXX0-0', '76.XXX.XXX-2', '76XXXXXX-2', '7XXXXXXX-6', '76.XXX.XXX-6', '76.XXX.XXX-0', '7XXXXXXX-0', 'XXXXXXXX-3', '76.XXX.XXX-3', '77.XXX.XXX-1', '7XXXXXXX-1', '77.XXX.XXX-6', '77XXXXXX-6'))) THEN 'Homecares' 
+    WHEN ((BI_clasificador1 = 'B2B') AND (identificador_rut IN ('7XXXXXX-6', '76.XXX.XXX-6'))) THEN U&'Cl\00EDnicas ... ' 
+    WHEN ((BI_clasificador1 = 'B2B') AND (identificador_rut IN ('1-1'))) THEN U&'B2B Cr\00F3nicos' 
+    WHEN (BI_clasificador1 = 'B2B') THEN 'Otros' 
+    WHEN ((BI_clasificador1 = 'B2B2C') AND (NOT (resumeorder_clasification3 IN ('Nombre1', 'Nombre_2', 'Nombre_3', 'Nombre_4', 'Nombre_5')))) THEN 'Otros' 
+    WHEN ((BI_clasificador1 = 'B2B2C') AND (resumeorder_clasification3 IN ('Nombre1', 'Nombre_2', 'Nombre_3', 'Nombre_4', 'Nombre_5'))) THEN resumeorder_clasification3 
+  
+    WHEN ((resumeorder_canal = 'Call Center') AND (resumeorder_clasification1 = 'Nombre')) THEN resumeorder_canal 
+   
+    ELSE 'No especificado' 
+END) AS BI_clasificador2
+
+   FROM
+     clasificador_e_info
+) 
+, envios AS (
+   SELECT DISTINCT
+     createdat
+   , fecha_facturacion
+   , facturacion_anio_mes
+   , facturacion_nombre_mes_anio
+   , facturacion_nombre_corto_mes_anio
+   , facturacion_dia
+   , facturacion_mes
+   , facturacion_anio
+   , facturacion_hora
+   , creacion_anio_mes
+   , creacion_nombre_mes_anio
+   , creacion_nombre_corto_mes_anio
+   , creacion_dia
+   , creacion_mes
+   , creacion_anio
+   , creacion_hora
+   , facturacion_fecha_completa
+   , creacion_fecha_completa
+   , facturacion_nro_semana
+   , creacion_nro_semana
+   , CONCAT('Semana ', CAST(facturacion_nro_semana AS varchar)) facturacion_nombre_semana
+   , CONCAT('Semana ', CAST(creacion_nro_semana AS varchar)) creacion_nombre_semana
+   , creacion_nombre_dia_semana
+   , facturacion_nombre_dia_semana
+   , identificador_rut
+   , nombre_cliente
+   , url_facturacion
+   , seguro_complementario
+   , order_id
+   , '1' sku
+   , medio_de_pago
+   , metodo_de_pago
+   , estado_del_pago
+   , monto_del_pago
+   , 'Envio' nombre_del_producto
+   , CAST(delivery_pricepaid AS integer) delivery_pricepaid
+   , estado_orden
+   , convenio
+   , canal
+   , extras_referrer
+   , CAST(delivery_pricepaid AS integer) precio_de_venta_pvp
+   , CAST(1 AS integer) cantidad_producto
+   , CAST(delivery_pricepaid AS integer) total_price
+   , 'Envio' categoria
+   , 'Envio' subcategoria
+   , resumeorder_canal
+   , resumeorder_clasification1
+   , resumeorder_clasification2
+   , resumeorder_clasification3
+   , resumeorder_clasification1_otro
+   , resumeorder_clasification2_otro
+   , resumeorder_clasification3_otro
+   , BI_clasificador1
+   , BI_clasificador2
+   FROM
+     resultado_final rf
+) 
+, resultado AS (
+   SELECT rf.*
+   FROM
+     resultado_final rf
+UNION ALL    SELECT en.*
+   FROM
+     envios en
+) 
+, resultado_clasificacion AS (
+   SELECT
+     r.*
+   , (CASE WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = 'Nombre')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = U&'Nutrici\00F3n / Control de Peso')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = 'Nombre')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = 'Nombre')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = 'Nombre')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B2C') AND (BI_clasificador2 = 'Otros')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B') AND (BI_clasificador2 = 'Homecares')) THEN nombre_cliente WHEN ((BI_clasificador1 = 'B2B') AND (resumeorder_clasification2 = 'Nombre')) THEN resumeorder_clasification2 WHEN ((BI_clasificador1 = 'B2B') AND (BI_clasificador2 = 'Nombre')) THEN nombre_cliente WHEN ((BI_clasificador1 = 'B2B') AND (BI_clasificador2 = 'Otros')) THEN nombre_cliente WHEN ((BI_clasificador1 = 'B2C') AND (resumeorder_canal = 'Call Center')) THEN resumeorder_clasification1 WHEN ((BI_clasificador1 = 'B2C') AND (BI_clasificador2 = U&'F\00EDsico')) THEN resumeorder_clasification1 WHEN ((BI_clasificador1 = 'B2C') AND (resumeorder_clasification1 IN ('Nombre', 'Nombre', 'Nombre', 'Nombre'))) THEN resumeorder_clasification1 WHEN ((BI_clasificador1 = 'B2C') AND (resumeorder_clasification1 IN ('Call Center', 'Familia Farmaloop'))) THEN resumeorder_clasification1 WHEN ((BI_clasificador1 = 'B2C') AND (resumeorder_clasification1 IN ('WEB', 'Meson 1', 'Yapp', ''))) THEN resumeorder_clasification1 ELSE 'No especificado' END) BI_clasificador3
+   FROM
+     resultado r
+) 
+SELECT r.*
+FROM
+  resultado_clasificacion r
+ORDER BY createdat DESC

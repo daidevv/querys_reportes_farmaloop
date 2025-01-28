@@ -1,0 +1,43 @@
+CREATE OR REPLACE VIEW "comisiones_meds_otras_especialidades" AS 
+WITH
+  informacion_base AS (
+   SELECT DISTINCT
+     date_format(date_parse(substring(o.createdat, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%d-%m-%Y') fecha_creacion
+   , (CASE WHEN ((o.billing_emissiondate IS NOT NULL) AND (o.billing_emissiondate <> '')) THEN date_format(date_parse(substring(o.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s'), '%d-%m-%Y') ELSE 'Sin registro' END) facturacion_fecha
+   , (CASE WHEN ((o.billing_emissiondate IS NOT NULL) AND (o.billing_emissiondate <> '')) THEN year(date_parse(substring(o.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s')) ELSE null END) facturacion_anio
+   , (CASE WHEN ((o.billing_emissiondate IS NOT NULL) AND (o.billing_emissiondate <> '')) THEN month(date_parse(substring(o.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s')) ELSE null END) facturacion_mes
+   , (CASE WHEN ((o.billing_emissiondate IS NOT NULL) AND (o.billing_emissiondate <> '')) THEN day(date_parse(substring(regexp_replace(o.billing_emissiondate, '\.\d+Z$', ''), 1, 19), '%Y-%m-%dT%H:%i:%s')) ELSE null END) facturacion_dia
+   , (CASE WHEN (date_parse(substring(o.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s') < TIMESTAMP '2024-07-23 00:00:00') THEN o.resumeorder_convenio ELSE o.resumeorder_clasification1 END) institucion
+   , o.id nro_orden
+   , p.sku nro_sku
+   , p.fullname nombre_producto
+   , CAST(o.productsorder_price AS INTEGER) precio_por_unidad
+   , o.productsorder_qty cantidad
+   , CAST((o.productsorder_price * o.productsorder_qty) AS INTEGER) venta_bruta
+   , CAST(((o.productsorder_price * o.productsorder_qty) / 1.19E0) AS INTEGER) venta_neta
+   , '5% de las ventas netas de todas las recetas' porcentaje_comision_acordado
+   , CAST((((o.productsorder_price * o.productsorder_qty) / 1.19E0) * 5E-2) AS INTEGER) comision_neta_a_pagar
+   FROM
+     ("base_de_datos_de_la_empresa"."tabla_o_vista" o
+   INNER JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" p ON ((o.productsorder_sku = p.sku) AND (CAST(p.partition_0 AS INTEGER) = year(date_add('day', -1, current_timestamp))) AND (CAST(p.partition_1 AS INTEGER) = month(date_add('day', -1, current_timestamp))) AND (CAST(p.partition_2 AS INTEGER) = day(date_add('day', -1, current_timestamp)))))
+   WHERE ((o.billing_emissiondate IS NOT NULL) AND (o.billing_emissiondate <> '') AND (date_parse(substring(o.billing_emissiondate, 1, 19), '%Y-%m-%dT%H:%i:%s') >= date_parse('2024-01-01T00:00:00', '%Y-%m-%dT%H:%i:%s')) AND (o.payments_status IN ('Aprobado', 'Approved', '')) AND (NOT (o.statusorder IN ('CREADO', 'CANCELADO'))))
+) 
+SELECT DISTINCT
+  facturacion_fecha
+, facturacion_anio
+, facturacion_mes
+, facturacion_dia
+, institucion
+, nombre_producto
+, nro_sku
+, MAX(precio_por_unidad) precio_por_unidad
+, SUM(cantidad) cantidad
+, SUM(venta_bruta) venta_bruta
+, SUM(venta_neta) venta_neta
+, porcentaje_comision_acordado
+, SUM(comision_neta_a_pagar) comision_neta_a_pagar
+FROM
+  informacion_base
+WHERE ((institucion IN ('Nombre', 'Clinica_X', 'C.C. -', 'Nombre', 'Nombre')) AND (NOT (nro_sku IN ('140217', '131496', '140218', '140589', '105448', '140362', '131616', '140312', '140450', '140253', '140588', '150180', '140220', '140368', '140590', '140091', '105441', '140361', '140352', '140216', '140219', '128533', '140354'))) AND (precio_por_unidad > 0))
+GROUP BY facturacion_fecha, facturacion_anio, facturacion_mes, facturacion_dia, institucion, nro_sku, nombre_producto, porcentaje_comision_acordado
+ORDER BY facturacion_anio ASC

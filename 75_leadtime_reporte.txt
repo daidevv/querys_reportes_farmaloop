@@ -1,0 +1,101 @@
+CREATE OR REPLACE VIEW "operaciones_lead_time" AS 
+WITH
+  ordenes_nueva AS (
+   SELECT DISTINCT
+     c.general_aprobador aprobador
+   , c.general_proveedor laboratorio
+   , c.general_responsable responsable
+   , c.general_tipo tipo_compra
+   , c.id nro_oc
+   , (CASE WHEN ((c."date" >= TIMESTAMP '2024-04-07 00:00:00') AND (c."date" < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((c."date" - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((c."date" - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_oc
+   , day(c."date") dia_oc
+   , month(c."date") mes_oc
+   , year(c."date") anio_oc
+   , (CASE WHEN (month(c."date") = 1) THEN 'Enero' WHEN (month(c."date") = 2) THEN 'Febrero' WHEN (month(c."date") = 3) THEN 'Marzo' WHEN (month(c."date") = 4) THEN 'Abril' WHEN (month(c."date") = 5) THEN 'Mayo' WHEN (month(c."date") = 6) THEN 'Junio' WHEN (month(c."date") = 7) THEN 'Julio' WHEN (month(c."date") = 8) THEN 'Agosto' WHEN (month(c."date") = 9) THEN 'Septiembre' WHEN (month(c."date") = 10) THEN 'Octubre' WHEN (month(c."date") = 11) THEN 'Noviembre' WHEN (month(c."date") = 12) THEN 'Diciembre' END) mes_nombre_oc
+   , (CASE WHEN ((r.auditoria_fecha_creacion >= TIMESTAMP '2024-04-07 00:00:00') AND (r.auditoria_fecha_creacion < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((r.auditoria_fecha_creacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((r.auditoria_fecha_creacion - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) recepcion_oc
+   , date_diff('day', c."date", r.auditoria_fecha_creacion) demora_dias
+   , (CAST(date_diff('second', c.date, r.auditoria_fecha_creacion) AS integer) / 3600) demora_hs
+   FROM
+     ("tabla_o_vista" c
+   LEFT JOIN "tabla_o_vista" r ON (c.id = r.general_orden_de_compra_id))
+  -- LEFT JOIN "tabla_o_vista" s ON c.general_proveedor  = s.id
+   
+   WHERE ((CAST(c.partition_0 AS int) = year(date_add('day', -1, current_date))) AND (CAST(c.partition_1 AS int) = month(date_add('day', -1, current_date))) AND (CAST(c.partition_2 AS int) = day(date_add('day', -1, current_date))) AND (c."date" >= TIMESTAMP '2024-01-01 00:00:00'))
+) 
+, ordenes_antiguo AS (
+   SELECT DISTINCT
+     c.purchaseapprover aprobador
+   , s.name laboratorio
+   , c.responsible responsable
+   , c.purchasetype tipo_compra
+   , c.ocnumber nro_oc
+   , (CASE WHEN ((c.purchasedate >= TIMESTAMP '2024-04-07 00:00:00') AND (c.purchasedate < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((c.purchasedate - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((c.purchasedate - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_oc
+   , day(c.purchasedate) dia_oc
+   , month(c.purchasedate) mes_oc
+   , year(c.purchasedate) anio_oc
+   , (CASE WHEN (month(c.purchasedate) = 1) THEN 'Enero' WHEN (month(c.purchasedate) = 2) THEN 'Febrero' WHEN (month(c.purchasedate) = 3) THEN 'Marzo' WHEN (month(c.purchasedate) = 4) THEN 'Abril' WHEN (month(c.purchasedate) = 5) THEN 'Mayo' WHEN (month(c.purchasedate) = 6) THEN 'Junio' WHEN (month(c.purchasedate) = 7) THEN 'Julio' WHEN (month(c.purchasedate) = 8) THEN 'Agosto' WHEN (month(c.purchasedate) = 9) THEN 'Septiembre' WHEN (month(c.purchasedate) = 10) THEN 'Octubre' WHEN (month(c.purchasedate) = 11) THEN 'Noviembre' WHEN (month(c.purchasedate) = 12) THEN 'Diciembre' END) mes_nombre_oc
+   , (CASE WHEN ((r.receptiondate >= TIMESTAMP '2024-04-07 00:00:00') AND (r.receptiondate < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((r.receptiondate - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((r.receptiondate - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) recepcion_oc
+   , date_diff('day', c.purchasedate, r.receptiondate) demora_dias
+   , (CAST(date_diff('second', c.purchasedate, r.receptiondate) AS integer) / 3600) demora_hs
+   FROM
+     ("tabla_o_vista" c
+   LEFT JOIN "tabla_o_vista" r ON (c.ocnumber = r.ocnumber))
+    LEFT JOIN "tabla_o_vista" s ON c.supplier = s.id
+   WHERE ((CAST(c.partition_0 AS int) = year(date_add('day', -1, current_date))) AND (CAST(c.partition_1 AS int) = month(date_add('day', -1, current_date))) AND (CAST(c.partition_2 AS int) = day(date_add('day', -1, current_date))) AND (c.purchasedate >= TIMESTAMP '2024-01-01 00:00:00'))
+) 
+, ordenes_con_rn AS (
+   SELECT
+     *
+   , ROW_NUMBER() OVER (PARTITION BY nro_oc ORDER BY fecha_oc ASC) rn
+   FROM
+     (
+      SELECT DISTINCT
+        fecha_oc
+      , dia_oc
+      , mes_oc
+      , anio_oc
+      , mes_nombre_oc
+      , nro_oc
+      , recepcion_oc
+      , responsable
+      , laboratorio
+      , aprobador
+      , demora_dias
+      , demora_hs
+      FROM
+        ordenes_nueva
+UNION ALL       SELECT DISTINCT
+        fecha_oc
+      , dia_oc
+      , mes_oc
+      , anio_oc
+      , mes_nombre_oc
+      , nro_oc
+      , recepcion_oc
+      , responsable
+      , laboratorio
+      , aprobador
+      , demora_dias
+      , demora_hs
+      FROM
+        ordenes_antiguo
+   )  unificada
+) 
+SELECT
+  fecha_oc
+, dia_oc
+, mes_oc
+, anio_oc
+, mes_nombre_oc
+, nro_oc
+, recepcion_oc
+, responsable
+, laboratorio
+, aprobador
+, demora_dias
+, demora_hs
+FROM
+  ordenes_con_rn
+WHERE ((rn = 1) AND (demora_dias >= 0))
+ORDER BY fecha_oc DESC;
+

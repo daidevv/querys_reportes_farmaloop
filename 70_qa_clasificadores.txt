@@ -1,0 +1,7 @@
+CREATE OR REPLACE VIEW "qa_clasificadores" AS 
+SELECT DISTINCT *
+FROM
+  "tabla_o_vista"
+UNION ALL SELECT DISTINCT *
+FROM
+  "tabla_o_vista"

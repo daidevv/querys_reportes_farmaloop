@@ -1,0 +1,26 @@
+CREATE OR REPLACE VIEW productos_control_de_peso AS 
+
+WITH info_base AS(
+
+SELECT 
+    DATE_FORMAT(CAST(transaction_date AS DATE), '%d-%m-%Y') fecha_orden,
+    orderid, 
+    productsubcategory subcategoria,
+    customer correo_electronico_cliente,
+    statusorder estado_orden,
+    discount_type_1,
+    discount_type_2
+
+FROM
+    "base_de_datos_de_la_empresa"."tabla_o_vista"
+WHERE  
+    CAST(transaction_date AS DATE) >= DATE '2024-01-01'
+    AND statusorder = 'ENTREGADO'
+    AND productsubcategory = 'Control de Peso'
+    AND require_prescription = false 
+    AND (discount_type_1 IS NULL AND discount_type_2 IS NULL)
+
+)
+SELECT *
+FROM info_base
+ORDER BY fecha_orden; 

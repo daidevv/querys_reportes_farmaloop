@@ -1,0 +1,110 @@
+CREATE OR REPLACE VIEW pedidos_nombre_institucion AS 
+
+WITH ventas_cv AS (
+    SELECT DISTINCT
+        cv.fecha_creacion,
+        cl.emission_date facturacion_fecha,
+        cv.transaccion_n_orden,
+        cv.comercial_convenio,
+        cv.clasificador2,
+        cv.producto_sku,
+        cv.producto_descripcion,
+        cv.cliente
+    FROM "base_de_datos_de_la_empresa"."tabla_o_vista" cv
+    LEFT JOIN "tabla_o_vista" cl ON cv.transaccion_n_orden = cl.orderid
+    WHERE date_parse(cv.fecha_creacion, '%Y-%m-%d') BETWEEN DATE '2024-04-01' AND current_date
+    AND producto_sku IN ('140217', '131496', '140218', '140589', '105448', '140362', '131616', '140312', '140450', '140253', '140588', '150180', '140220', '140368', '140590', '140091', '105441', '140361', '140352', '140216', '140219', '128533', '140354')
+    AND (cv.comercial_convenio IN ('nombre_convenio', 'nombre_convenio') OR cv.clasificador2 = 'nombre')
+),
+pedidos AS (
+    SELECT DISTINCT
+        pd.id_pedido,
+        pd.fecha_hora_orden,
+        pd.observacion
+    FROM "base_de_datos_de_la_empresa"."tabla_o_vista" pd
+),
+resultados AS (
+    SELECT DISTINCT
+        date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%d-%m-%Y') AS creacion_fecha,
+        date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%d') AS creacion_dia,
+        date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%m') AS creacion_mes,
+        date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%Y') AS creacion_anio,
+        (CASE 
+    WHEN ((v.facturacion_fecha >= TIMESTAMP '2024-04-07 00:00:00') AND (v.facturacion_fecha < TIMESTAMP '2024-09-01 23:59:59')) 
+    THEN date_format((v.facturacion_fecha - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+    WHEN ((v.facturacion_fecha >= TIMESTAMP '2023-04-02 00:00:00') AND (v.facturacion_fecha < TIMESTAMP '2023-10-01 23:59:59')) 
+    THEN date_format((v.facturacion_fecha - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+    ELSE date_format((v.facturacion_fecha - INTERVAL '3' HOUR), '%d-%m-%Y %H:%i') 
+END) AS facturacion_fecha_cl,
+        date_format(v.facturacion_fecha, '%d') AS facturacion_dia,
+        date_format(v.facturacion_fecha, '%m') AS facturacion_mes,
+        date_format(v.facturacion_fecha, '%Y') AS facturacion_anio,
+        (CASE 
+            WHEN ((p.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (p.fecha_hora_orden < TIMESTAMP '2024-09-01 23:59:59')) 
+            THEN date_format((p.fecha_hora_orden - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+            WHEN ((p.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (p.fecha_hora_orden < TIMESTAMP '2023-10-01 23:59:59')) 
+            THEN date_format((p.fecha_hora_orden - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+            ELSE date_format((p.fecha_hora_orden - INTERVAL '3' HOUR), '%d-%m-%Y %H:%i') 
+        END) AS fecha_hora_orden_cl,
+        (CASE WHEN (p.observacion IS NOT NULL) THEN 'Si' ELSE 'No' END) AS paso_por_observacion,
+        (CASE 
+            WHEN ((p.observacion >= TIMESTAMP '2024-04-07 00:00:00') AND (p.observacion < TIMESTAMP '2024-09-01 23:59:59')) 
+            THEN date_format((p.observacion - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+            WHEN ((p.observacion >= TIMESTAMP '2023-04-02 00:00:00') AND (p.observacion < TIMESTAMP '2023-10-01 23:59:59')) 
+            THEN date_format((p.observacion - INTERVAL '4' HOUR), '%d-%m-%Y %H:%i') 
+            ELSE date_format((p.observacion - INTERVAL '3' HOUR), '%d-%m-%Y %H:%i') 
+        END) AS fecha_y_hora_observacion_cl,
+ (CASE 
+    WHEN (DATE_FORMAT(
+        CASE 
+            WHEN ((p.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (p.fecha_hora_orden < TIMESTAMP '2024-09-01 23:59:59')) 
+            THEN p.fecha_hora_orden - INTERVAL '4' HOUR 
+            WHEN ((p.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (p.fecha_hora_orden < TIMESTAMP '2023-10-01 23:59:59')) 
+            THEN p.fecha_hora_orden - INTERVAL '4' HOUR 
+            ELSE p.fecha_hora_orden - INTERVAL '3' HOUR 
+        END, '%H:%i') >= '17:00') THEN 'Si' 
+    ELSE 'No' 
+END) AS ingreso_mayor_17hs,
+        v.transaccion_n_orden AS orden_id,
+        CASE 
+            WHEN date_parse(v.fecha_creacion, '%Y-%m-%d') < DATE '2024-07-23' 
+            THEN v.comercial_convenio 
+            ELSE v.clasificador2 
+        END AS convenio,
+        v.producto_sku,
+        v.producto_descripcion AS producto_nombre,
+        v.cliente AS cliente_nombre,
+       (CASE 
+            WHEN date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%d') = date_format(v.facturacion_fecha, '%d') 
+                 AND date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%m') = date_format(v.facturacion_fecha, '%m') 
+                 AND date_format(date_parse(v.fecha_creacion, '%Y-%m-%d'), '%Y') = date_format(v.facturacion_fecha, '%Y') 
+            THEN 'Si' 
+            ELSE 'No' 
+        END) AS facturacion_en_dia_de_transaccion
+    FROM ventas_cv v
+    LEFT JOIN pedidos p ON v.transaccion_n_orden = p.id_pedido
+)
+SELECT DISTINCT 
+creacion_fecha,
+creacion_dia,
+creacion_mes,
+creacion_anio,
+facturacion_dia,
+facturacion_mes, 
+facturacion_anio,
+orden_id,
+convenio,
+producto_sku,
+producto_nombre,
+cliente_nombre,
+fecha_hora_orden_cl,
+facturacion_fecha_cl,
+paso_por_observacion,
+fecha_y_hora_observacion_cl,
+ingreso_mayor_17hs,
+facturacion_en_dia_de_transaccion,
+(CASE 
+    WHEN ingreso_mayor_17hs = 'Si' AND facturacion_en_dia_de_transaccion = 'Si' THEN 18982
+    ELSE 0 
+END) AS recargo_UF
+FROM resultados;

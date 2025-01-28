@@ -1,0 +1,37 @@
+CREATE OR REPLACE VIEW "panel_comercial_ventas" AS 
+SELECT DISTINCT
+  DATE(orders.transaction_date) transaccion_fecha,
+  day(DATE(orders.transaction_date)) transaccion_dia,  
+  month(DATE(orders.transaction_date)) transaccion_mes,
+  year(DATE(orders.transaction_date)) transaccion_anio,
+CAST(DATE(orders.emission_date) AS DATE) facturacion_fecha,
+  day(DATE(orders.emission_date)) facturacion_dia,
+  month(DATE(orders.emission_date)) facturacion_mes,
+  year(DATE(orders.emission_date)) facturacion_anio
+, (CASE WHEN ((CAST(day(orders.emission_date) AS decimal) / 7) <= 1) THEN '1' WHEN ((CAST(day(orders.emission_date) AS decimal) / 7) <= 2) THEN '2' WHEN ((CAST(day(orders.emission_date) AS decimal) / 7) <= 3) THEN '3' WHEN ((CAST(day(orders.emission_date) AS decimal) / 7) <= 4) THEN '4' ELSE '5' END) facturacion_semana
+, orders.payment_status transaccion_estado_pago
+, orders.statusorder transaccion_estado_orden
+, orders.sku producto_sku
+, orders.cantidad producto_unidades
+, (orders.precio_final_pagado_por_el_cliente * orders.cantidad) comercial_ingreso_total_bruto
+, orders.orderid transaccion_orderid
+, bi.resumeorder_clasification1 clasificador1
+, bi.resumeorder_clasification2 clasificador2
+, bi.resumeorder_clasification3 clasificador3
+, bi.bi_clasificador1 canal_o_convenio
+, bi.bi_clasificador2 tipo_o_doctor
+FROM
+  "tabla_o_vista" orders
+LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" bi ON (bi.order_id = orders.orderid)
+WHERE 
+  orders.billing_url <> '' 
+  AND (
+    (
+      (SUBSTR(orders.orderId, 1, 4) = 'CL-E') 
+      OR (SUBSTR(orders.orderId, 1, 5) = 'CL-CC')
+    ) 
+    AND NOT orders.statusorder IN ('CANCELADO', 'RECETA_NO_VALIDA', 'CREADO') 
+    AND orders.payment_status = 'Aprobado'
+  )
+  OR (SUBSTR(orders.orderId, 1, 4) = 'CL-P');
+

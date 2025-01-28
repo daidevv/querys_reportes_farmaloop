@@ -1,0 +1,27 @@
+CREATE OR REPLACE VIEW "reporte_programa_paciente" AS 
+
+SELECT DISTINCT
+    date_format(transaction_datetime, '%d-%m-%Y %H:%i') AS fecha_hora,
+    date_format(CAST(transaction_date AS timestamp), '%d-%m-%Y') AS fecha,
+    customer AS correo_cliente,
+    orderid,
+    MAX(sku) AS sku,
+    MAX(product_name) AS nombre_producto,
+    COUNT(*) AS unidades,
+    MAX(discount_promotioncode_1) AS cupon_1,
+    MAX(discount_promotioncode_2) AS cupon_2
+FROM
+    "base_de_datos_de_la_empresa"."tabla_o_vista"
+WHERE
+    CAST(transaction_date AS timestamp) >= TIMESTAMP '2024-05-01 00:00:00'
+    AND sku = '119XXX'
+    AND payment_status = 'Aprobado'
+    AND statusorder NOT IN ('CANCELADO', 'CREADO', 'RECETA_NO_VALIDA')
+GROUP BY
+    date_format(transaction_datetime, '%d-%m-%Y %H:%i'),
+    date_format(CAST(transaction_date AS timestamp), '%d-%m-%Y'),
+    customer,
+    orderid
+ORDER BY
+    fecha
+

@@ -1,0 +1,42 @@
+CREATE OR REPLACE VIEW pedidos_express_call_center AS
+WITH info_base AS (
+    SELECT DISTINCT
+        date_format(CAST(pd.fecha_hora_orden AS timestamp), '%d-%m-%Y %H:%i') AS transaccion_fecha_hora,
+        date_format(CAST(pd.fecha_orden AS timestamp), '%d-%m-%Y') AS transaccion_fecha,
+        YEAR(pd.fecha_hora_orden) AS transaccion_anio,
+        MONTH(pd.fecha_hora_orden) AS transaccion_mes,
+        DAY(pd.fecha_hora_orden) AS transaccion_dia,
+        pd.id_pedido orden_id, 
+        REPLACE(pd.tipo_despacho, ' (4 horas hábiles)', '') AS orden_tipo_despacho,
+        b.sku producto_sku,
+        ap.name producto_nombre,
+        ap.subcategory producto_subcategoria,
+        ROW_NUMBER() OVER (PARTITION BY pd.id_pedido, b.sku ORDER BY pd.fecha_hora_orden DESC) AS rn
+    FROM "base_de_datos_de_la_empresa"."tabla_o_vista" pd
+    LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" o
+    ON pd.id_pedido = o.id
+    CROSS JOIN UNNEST(productsorder) WITH ORDINALITY T (b, position)
+    LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" ap
+    ON b.sku = ap.sku
+    WHERE pd.tipo_despacho = 'Envío Express (4 horas hábiles)'
+    AND o.resumeorder.canal = 'Call Center'
+    AND ap.subcategory <> 'Fertilidad'
+    AND (CAST(o.partition_0 AS int) = year(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental')))
+    AND (CAST(o.partition_1 AS int) = month(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental')))
+    AND (CAST(o.partition_2 AS int) = day(date_add('day', -1, current_timestamp AT TIME ZONE 'Chile/Continental')))
+)
+
+SELECT DISTINCT
+    transaccion_fecha_hora,
+    transaccion_fecha,
+    transaccion_dia,
+    transaccion_mes,
+    transaccion_anio,
+    orden_id, 
+    orden_tipo_despacho,
+    producto_sku,
+    producto_nombre,
+    producto_subcategoria
+FROM info_base
+WHERE rn = 1
+

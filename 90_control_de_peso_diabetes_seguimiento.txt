@@ -1,0 +1,10 @@
+SELECT DISTINCT
+    DATE_FORMAT(CAST(fecha_creacion AS DATE), '%d-%m-%Y') AS fecha_orden,
+    orderid, 
+    producto_subcategoria AS subcategoria,
+    cliente 
+FROM
+    "base_de_datos_de_la_empresa"."tabla_o_vista"
+WHERE  
+    CAST(fecha_creacion AS DATE) >= DATE '2024-01-01'
+    AND (producto_subcategoria = 'Control de Peso' OR producto_subcategoria = 'Diabetes')

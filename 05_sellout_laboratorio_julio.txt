@@ -1,0 +1,26 @@
+CREATE OR REPLACE VIEW "sellout_report" AS 
+WITH
+  info_base AS (
+   SELECT
+     producto_sku
+   , producto_descripcion
+   , producto_lote
+   , date_format(CAST(fecha_facturacion AS timestamp), '%Y-%m') mes
+   , comercial_pvp_unitario_bruto
+   , comercial_unidades
+   FROM
+     "base_de_datos_de_la_empresa"."tabla_o_vista"
+   WHERE ((CAST(fecha_facturacion AS DATE) BETWEEN DATE '2024-07-01' AND DATE '2024-07-31') AND (producto_laboratorio LIKE '%MEGA...%') AND (producto_lote LIKE 'MGL%'))
+) 
+SELECT
+  producto_sku
+, producto_descripcion nombre_producto
+, producto_lote lote
+, mes
+, (SUM((comercial_pvp_unitario_bruto * comercial_unidades)) / NULLIF(SUM(comercial_unidades), 0)) pvp_promedio
+, SUM(comercial_unidades) unidades_totales
+, SUM((comercial_pvp_unitario_bruto * comercial_unidades)) utilidad
+FROM
+  info_base
+GROUP BY producto_sku, producto_descripcion, producto_lote, mes
+ORDER BY producto_sku ASC, nombre_producto ASC, lote ASC, mes ASC

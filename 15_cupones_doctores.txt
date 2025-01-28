@@ -1,0 +1,21 @@
+
+SELECT DISTINCT
+cv.fecha_creacion,
+cv.fecha_facturacion,
+cv.transaccion_n_orden,
+cv.transaccion_estatus,
+cv.transaccion_estado_orden,
+cv.producto_sku,
+cv.producto_descripcion nombre_producto,
+cv.comercial_unidades,
+cv.comercial_pvp_unitario_bruto precio_unitario_venta,
+cv.comercial_ingreso_total_bruto precio_final_venta,
+cv.clasificador2 institucion,
+ot.discount_promotioncode_1 cupon_utilizado
+
+FROM "vista_o_tabla" cv
+JOIN "vista_o_tabla" ot
+ON cv.transaccion_n_orden = ot.orderid
+WHERE fecha_creacion  BETWEEN '2024-08-01' AND '2024-08-31'
+AND ot.discount_promotioncode_1 IN ('nombre_cupon1', 'nombre_cupon2', 'nombre_cupon3', 'nombre_cupon4', 'nombre_cupon5')
+AND producto_sku <> '1'

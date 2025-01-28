@@ -1,0 +1,19 @@
+CREATE OR REPLACE VIEW emails_prod_requeridos_ultimos_dos_meses AS
+
+WITH info_base AS (
+    SELECT
+        fecha_creacion,
+        email,
+        date_parse(fecha_creacion, '%d/%m/%Y') AS fecha
+    FROM
+        "base_de_datos_de_la_empresa"."tabla_o_vista"
+)
+
+SELECT
+    fecha_creacion,
+    email
+FROM
+    info_base
+WHERE
+    fecha BETWEEN date_add('month', -2, current_date) AND current_date
+ORDER BY fecha_creacion; 

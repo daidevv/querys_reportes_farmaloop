@@ -1,0 +1,86 @@
+CREATE OR REPLACE VIEW marketing_recompras AS 
+
+WITH ordenes_unicas AS (
+  SELECT DISTINCT
+    transaction_date,
+    orderid,
+    customer,
+    lower(delivery_firstname) AS delivery_firstname,
+    delivery_phone,
+    ROW_NUMBER() OVER (PARTITION BY orderid ORDER BY transaction_date) AS rn
+  FROM "base_de_datos_de_la_empresa"."tabla_o_vista"
+  WHERE date_parse(transaction_date, '%Y-%m-%d') >= date '2024-07-01'
+    AND date_parse(transaction_date, '%Y-%m-%d') < date '2024-10-01'
+    AND statusorder NOT IN ('CANCELADO', 'CREADO', 'RECETA_NO_VALIDA')
+    AND (orderid LIKE 'CL-E%' OR orderid LIKE 'CL-CC%')
+),
+ordenes_por_cliente AS (
+  SELECT DISTINCT
+    customer,
+    COUNT(DISTINCT orderid) AS frecuencia_compra_gral
+  FROM "base_de_datos_de_la_empresa"."tabla_o_vista"
+  WHERE date_parse(transaction_date, '%Y-%m-%d') >= date '2024-07-01'
+    AND date_parse(transaction_date, '%Y-%m-%d') < date '2024-10-01'
+    AND statusorder NOT IN ('CANCELADO', 'CREADO', 'RECETA_NO_VALIDA')
+    AND (orderid LIKE 'CL-E%' OR orderid LIKE 'CL-CC%')
+  GROUP BY customer
+),
+clientes_con_recompra AS (
+  SELECT DISTINCT
+    customer
+  FROM "base_de_datos_de_la_empresa"."tabla_o_vista"
+  WHERE date_parse(transaction_date, '%Y-%m-%d') >= date '2024-07-01'
+    AND date_parse(transaction_date, '%Y-%m-%d') < date '2024-10-01'
+    AND statusorder NOT IN ('CANCELADO', 'CREADO', 'RECETA_NO_VALIDA')
+    AND (orderid LIKE 'CL-E%' OR orderid LIKE 'CL-CC%')
+  GROUP BY customer
+  HAVING COUNT(DISTINCT orderid) > 1 
+),
+clientes_totales AS (
+  SELECT DISTINCT
+    COUNT(DISTINCT customer) AS total_clientes
+  FROM "base_de_datos_de_la_empresa"."tabla_o_vista"
+  WHERE date_parse(transaction_date, '%Y-%m-%d') >= date '2024-07-01'
+    AND date_parse(transaction_date, '%Y-%m-%d') < date '2024-10-01'
+    AND statusorder NOT IN ('CANCELADO', 'CREADO', 'RECETA_NO_VALIDA')
+    AND (orderid LIKE 'CL-E%' OR orderid LIKE 'CL-CC%')
+),
+clientes_recompra AS (
+  SELECT DISTINCT
+    COUNT(DISTINCT customer) AS clientes_con_recompra
+  FROM clientes_con_recompra
+)
+SELECT 
+  o.transaction_date AS "transaccion fecha",
+  day(date_parse(o.transaction_date, '%Y-%m-%d')) AS "transaccion dia",
+  month(date_parse(o.transaction_date, '%Y-%m-%d')) AS "transaccion nro mes",
+  year(date_parse(o.transaction_date, '%Y-%m-%d')) AS "transaccion año",
+  CASE month(date_parse(o.transaction_date, '%Y-%m-%d'))
+    WHEN 7 THEN 'julio'
+    WHEN 8 THEN 'agosto'
+    WHEN 9 THEN 'septiembre'
+    ELSE 'otro mes'
+  END AS "transaccion mes",
+  o.orderid AS "orden id",
+  o.delivery_firstname AS "cliente nombre",
+  o.customer AS "cliente correo",
+  o.delivery_phone AS "cliente teléfono",
+  c.frecuencia_compra_gral AS "frecuencia de compra",
+  CASE
+    WHEN c.frecuencia_compra_gral > 1 THEN 'Sí' 
+    ELSE 'No'  
+  END AS "califica recompra", 
+    r.clientes_con_recompra AS "clientes con recompra",
+    t.total_clientes AS "clientes totales",
+  REPLACE(CAST(ROUND(CAST(r.clientes_con_recompra AS DOUBLE) / t.total_clientes, 2) AS VARCHAR), '.', ',') AS tasa_de_recompra,
+CONCAT(REPLACE(CAST(ROUND(CAST(r.clientes_con_recompra AS DOUBLE) / t.total_clientes * 100, 2) AS VARCHAR), '.', ','), '%') AS tasa_de_recompra_porcentaje
+
+FROM ordenes_unicas o
+JOIN ordenes_por_cliente c ON o.customer = c.customer
+JOIN clientes_totales t ON 1 = 1  
+JOIN clientes_recompra r ON 1 = 1  
+WHERE o.rn = 1;
+
+
+
+

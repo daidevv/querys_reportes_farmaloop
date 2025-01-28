@@ -1,0 +1,227 @@
+CREATE OR REPLACE VIEW "reporte_sla" AS 
+WITH
+  calculo_tiempo_fechas_cle_clc AS (
+   SELECT DISTINCT
+     format_datetime(CAST(pd.fecha_orden AS timestamp), 'dd-MM-yyyy') fecha_orden
+   , day(CAST(pd.fecha_orden AS timestamp)) dia_fecha_orden
+   , month(CAST(pd.fecha_orden AS timestamp)) mes_fecha_orden
+   , year(CAST(pd.fecha_orden AS timestamp)) anio_fecha_orden
+   , pd.id_pedido
+   , null id_ov
+   , null tipo_origen
+   , pd.convenio
+   , pd.tipo_documento_tributario
+   , (CASE WHEN (pd.id_pedido LIKE 'CL-E%') THEN 'Ecommerce' WHEN (pd.id_pedido LIKE 'CL-CC%') THEN 'Call Center' WHEN (pd.id_pedido LIKE 'CL-P%') THEN 'POS' ELSE 'Sin definir' END) tipo_orden
+   , (CASE WHEN (aot.productsubcategory = 'Nombre') THEN 'Nombre' WHEN (aot.productsubcategory = 'Nombre') THEN 'Nombre' ELSE 'Otros' END) categoria
+   , (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_hora_orden - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_hora_orden - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_hora_orden - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_hora_orden_cl
+   , date_format(pd.fecha_hora_orden, '%d-%m-%Y %H:%i') fecha_hora_orden_utc
+   , null fecha_ingreso_cierre_pedido
+   , (CASE WHEN ((pd.fecha_y_hora_de_validacion_de_receta >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_receta < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_validacion_de_receta >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_receta < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_validacion_de_receta_cl
+   , pd.fecha_y_hora_de_validacion_de_receta
+   , (CASE WHEN ((pd.fecha_y_hora_de_validacion_de_preparacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_preparacion < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_validacion_de_preparacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_preparacion < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_validacion_de_preparacion_cl
+   , pd.fecha_y_hora_de_validacion_de_preparacion
+   , (CASE WHEN ((pd.fecha_y_hora_de_termino_de_pickeo >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_termino_de_pickeo < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_termino_de_pickeo >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_termino_de_pickeo < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_termino_de_pickeo_cl
+   , pd.fecha_y_hora_de_termino_de_pickeo
+   , (CASE WHEN ((pd.fecha_y_hora_esperando_retiro >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_esperando_retiro < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_esperando_retiro >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_esperando_retiro < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_esperando_retiro_cl
+   , pd.fecha_y_hora_esperando_retiro
+   , (CASE WHEN ((pd.fechay_hora_de_entrega_a_delivery >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fechay_hora_de_entrega_a_delivery < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fechay_hora_de_entrega_a_delivery >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fechay_hora_de_entrega_a_delivery < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fechay_hora_de_entrega_a_delivery_cl
+   , (CASE WHEN ((pd.fecha_y_hora_de_retiro >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_retiro < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_retiro >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_retiro < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_retiro_cl
+   , (CASE WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_entrega_efectiva_cl
+   , pd.fecha_y_hora_de_entrega_efectiva
+   , (CASE WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_compromiso_entrega_cl
+   , aot.delivery_method
+   , (CASE WHEN (aot.delivery_method = 'DELIVERY') THEN 'Si' ELSE 'No' END) considera_delivery
+   , (CASE WHEN (aot.delivery_type = U&'Env\00EDo Express (4 horas h\00E1biles)') THEN 'Express' WHEN (aot.delivery_type IN (U&'Env\00EDo 24 horas h\00E1biles', U&'Env\00EDo en el d\00EDa (24 horas h\00E1biles)', U&'Env\00EDo en 24 horas')) THEN '24 horas' WHEN (aot.delivery_type IN (U&'Env\00EDo Est\00E1ndar (48 horas h\00E1biles)', U&'Env\00EDo Est\00E1ndar (48 horas)')) THEN '48 horas' ELSE '' END) tipo_despacho
+   , (CASE WHEN (aot.require_prescription = true) THEN 'Si' ELSE 'No' END) requiere_receta
+   , (CASE WHEN (aot.prescription IN (U&'Presentaci\00F3n receta m\00E9dica', 'Venta bajo receta cheque', U&'Receta m\00E9dica retenida')) THEN 'Si' ELSE 'No' END) receta
+   , pd.estado_actual
+   , aot.prescription prescripcion
+   , aot.delivery_provider delivery_provider
+   , pd.delivery_provider_service_id delivery_asignacion
+   , (CASE WHEN ((aot.discount_type_1 = 'Delivery') OR (aot.discount_type_2 = 'Delivery')) THEN 'Si' ELSE 'No' END) descuento_delivery
+   , aot.zona
+   , aot.region
+   , aot.comuna
+   , (CASE WHEN (pd.observacion IS NOT NULL) THEN 'Si' ELSE 'No' END) paso_por_observacion
+   , (CASE WHEN ((pd.observacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.observacion < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.observacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.observacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.observacion < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.observacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.observacion - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_observacion_cl
+   , pd.next_tracking_date siguiente_estado_a_observacion
+   , pd.observacion fecha_de_observacion
+   , pd.reason razon_observacion
+   , date_diff('minute', (CASE WHEN ((pd.observacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.observacion < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.observacion - INTERVAL  '4' HOUR) WHEN ((pd.observacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.observacion < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.observacion - INTERVAL  '4' HOUR) ELSE (pd.observacion - INTERVAL  '3' HOUR) END), (CASE WHEN (pd.next_tracking_date IS NOT NULL) THEN (CASE WHEN ((pd.next_tracking_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.next_tracking_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.next_tracking_date - INTERVAL  '4' HOUR) WHEN ((pd.next_tracking_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.next_tracking_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.next_tracking_date - INTERVAL  '4' HOUR) ELSE (pd.next_tracking_date - INTERVAL  '3' HOUR) END) ELSE null END)) tiempo_observacion_min
+   , CAST(FLOOR((date_diff('minute', (CASE WHEN ((pd.observacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.observacion < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.observacion - INTERVAL  '4' HOUR) WHEN ((pd.observacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.observacion < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.observacion - INTERVAL  '4' HOUR) ELSE (pd.observacion - INTERVAL  '3' HOUR) END), (CASE WHEN (pd.next_tracking_date IS NOT NULL) THEN (CASE WHEN ((pd.next_tracking_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.next_tracking_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.next_tracking_date - INTERVAL  '4' HOUR) WHEN ((pd.next_tracking_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.next_tracking_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.next_tracking_date - INTERVAL  '4' HOUR) ELSE (pd.next_tracking_date - INTERVAL  '3' HOUR) END) ELSE null END)) / 60)) AS VARCHAR) tiempo_observacion_hr
+   , date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) tiempo_proceso_entrega_min
+   , CAST(FLOOR((date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) / 60)) AS VARCHAR) tiempo_proceso_entrega_hr
+   , CAST(FLOOR((date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((pd.fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (pd.fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) / 1440)) AS VARCHAR) tiempo_proceso_entrega_dias
+   , (CASE WHEN (CAST(date_diff('minute', (CASE WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) AS INTEGER) <= 0) THEN 'Si' ELSE 'No' END) compromiso_entrega_a_tiempo
+   , CAST((date_diff('minute', (CASE WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) / 60) AS VARCHAR) retraso_horas_compromiso_entrega
+   , CAST((date_diff('minute', (CASE WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2024-04-07 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2024-09-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) WHEN ((fecha_y_hora_de_entrega_efectiva >= TIMESTAMP '2023-04-02 00:00:00') AND (fecha_y_hora_de_entrega_efectiva < TIMESTAMP '2023-10-01 00:00:00')) THEN (fecha_y_hora_de_entrega_efectiva - INTERVAL  '4' HOUR) ELSE (fecha_y_hora_de_entrega_efectiva - INTERVAL  '3' HOUR) END)) / 1440) AS VARCHAR) retraso_dias_compromiso_entrega
+   , ROW_NUMBER() OVER (PARTITION BY pd.id_pedido ORDER BY pd.fecha_orden DESC) rn
+  
+   FROM
+     ("base_de_datos_de_la_empresa"."tabla_o_vista" pd
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" aot ON (pd.id_pedido = aot.orderid))
+   WHERE ((CAST(pd.fecha_orden AS timestamp) >= TIMESTAMP '2024-01-01 00:00:00') AND (pd.estado_actual <> 'CANCELADO') AND (pd.estado_actual = 'ENTREGADO') AND ((pd.id_pedido LIKE 'CL-E%') OR (pd.id_pedido LIKE 'CL-CC%') OR ((pd.id_pedido LIKE 'CL-P%') AND ((pd.tipo_documento_tributario = 'boleta') OR (pd.tipo_documento_tributario = '')))))
+) 
+, calculo_tiempo_fechas_clp AS (
+   SELECT DISTINCT
+     format_datetime(CAST(pd.fecha_orden AS timestamp), 'dd-MM-yyyy') fecha_orden
+   , day(CAST(pd.fecha_orden AS timestamp)) dia_fecha_orden
+   , month(CAST(pd.fecha_orden AS timestamp)) mes_fecha_orden
+   , year(CAST(pd.fecha_orden AS timestamp)) anio_fecha_orden
+   , pd.id_pedido
+   , ov.id id_ov
+   , pd.convenio
+   , pd.tipo_documento_tributario
+   , ov.tipo_origen
+   , (CASE WHEN (ov.id LIKE 'CL-P%') THEN 'POS' ELSE 'Sin definir' END) tipo_orden
+   , (CASE WHEN (aot.productsubcategory = 'Nombre') THEN 'Nombre' WHEN (aot.productsubcategory = 'Nombre') THEN 'Nombre' ELSE 'Otros' END) categoria
+   , (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_hora_orden - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_hora_orden - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_hora_orden - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_hora_orden_cl
+   , date_format(pd.fecha_hora_orden, '%d-%m-%Y %H:%i') fecha_hora_orden_utc
+   , ov.fecha_ingreso_cierre_pedido
+   , (CASE WHEN ((pd.fecha_y_hora_de_validacion_de_receta >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_receta < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_validacion_de_receta >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_receta < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_validacion_de_receta - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_validacion_de_receta_cl
+   , pd.fecha_y_hora_de_validacion_de_receta
+   , (CASE WHEN ((pd.fecha_y_hora_de_validacion_de_preparacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_preparacion < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_validacion_de_preparacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_validacion_de_preparacion < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_validacion_de_preparacion - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_validacion_de_preparacion_cl
+   , pd.fecha_y_hora_de_validacion_de_preparacion
+   , (CASE WHEN ((pd.fecha_y_hora_de_termino_de_pickeo >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_termino_de_pickeo < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_termino_de_pickeo >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_termino_de_pickeo < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_termino_de_pickeo - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_termino_de_pickeo_cl
+   , pd.fecha_y_hora_de_termino_de_pickeo
+   , (CASE WHEN ((pd.fecha_y_hora_esperando_retiro >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_esperando_retiro < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_esperando_retiro >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_esperando_retiro < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_esperando_retiro - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_esperando_retiro_cl
+   , pd.fecha_y_hora_esperando_retiro
+   , (CASE WHEN ((pd.fechay_hora_de_entrega_a_delivery >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fechay_hora_de_entrega_a_delivery < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fechay_hora_de_entrega_a_delivery >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fechay_hora_de_entrega_a_delivery < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fechay_hora_de_entrega_a_delivery - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fechay_hora_de_entrega_a_delivery_cl
+   , (CASE WHEN ((pd.fecha_y_hora_de_retiro >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_y_hora_de_retiro < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.fecha_y_hora_de_retiro >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_y_hora_de_retiro < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.fecha_y_hora_de_retiro - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_de_retiro_cl
+   , (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_format(date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i'), '%d-%m-%Y %H:%i') ELSE '01-01-1900' END) fecha_y_hora_de_entrega_efectiva_cl
+   , pd.fecha_y_hora_de_entrega_efectiva
+   , (CASE WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.delivery_compromiso_entrega_date - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_compromiso_entrega_cl
+   , aot.delivery_method
+   , (CASE WHEN (aot.delivery_method = 'DELIVERY') THEN 'Si' ELSE 'No' END) considera_delivery
+   , (CASE WHEN (aot.delivery_type = U&'Env\00EDo Express (4 horas h\00E1biles)') THEN 'Express' WHEN (aot.delivery_type IN (U&'Env\00EDo 24 horas h\00E1biles', U&'Env\00EDo en el d\00EDa (24 horas h\00E1biles)', U&'Env\00EDo en 24 horas')) THEN '24 horas' WHEN (aot.delivery_type IN (U&'Env\00EDo Est\00E1ndar (48 horas h\00E1biles)', U&'Env\00EDo Est\00E1ndar (48 horas)')) THEN '48 horas' ELSE '' END) tipo_despacho
+   , (CASE WHEN (aot.require_prescription = true) THEN 'Si' ELSE 'No' END) requiere_receta
+   , (CASE WHEN (aot.prescription IN (U&'Presentaci\00F3n receta m\00E9dica', 'Venta bajo receta cheque', U&'Receta m\00E9dica retenida')) THEN 'Si' ELSE 'No' END) receta
+   , ov.estado_pedido estado_actual
+   , aot.prescription prescripcion
+   , aot.delivery_provider delivery_provider
+   , pd.delivery_provider_service_id delivery_asignacion
+   , (CASE WHEN ((aot.discount_type_1 = 'Delivery') OR (aot.discount_type_2 = 'Delivery')) THEN 'Si' ELSE 'No' END) descuento_delivery
+   , aot.zona
+   , aot.region
+   , aot.comuna
+   , (CASE WHEN (pd.observacion IS NOT NULL) THEN 'Si' ELSE 'No' END) paso_por_observacion
+   , (CASE WHEN ((pd.observacion >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.observacion < TIMESTAMP '2024-09-01 00:00:00')) THEN date_format((pd.observacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') WHEN ((pd.observacion >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.observacion < TIMESTAMP '2023-10-01 00:00:00')) THEN date_format((pd.observacion - INTERVAL  '4' HOUR), '%d-%m-%Y %H:%i') ELSE date_format((pd.observacion - INTERVAL  '3' HOUR), '%d-%m-%Y %H:%i') END) fecha_y_hora_observacion_cl
+   , pd.next_tracking_date siguiente_estado_a_observacion
+   , pd.observacion fecha_de_observacion
+   , ov.observacion razon_observacion
+   , date_diff('minute', pd.observacion, pd.next_tracking_date) tiempo_observacion_min
+   , CAST(FLOOR((date_diff('minute', pd.observacion, pd.next_tracking_date) / 60)) AS VARCHAR) tiempo_observacion_hr
+   , date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) tiempo_proceso_entrega_min
+   , CAST(FLOOR((date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) / 60)) AS VARCHAR) tiempo_proceso_entrega_hr
+   , CAST(FLOOR((date_diff('minute', (CASE WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) WHEN ((pd.fecha_hora_orden >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.fecha_hora_orden < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.fecha_hora_orden - INTERVAL  '4' HOUR) ELSE (pd.fecha_hora_orden - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) / 1440)) AS VARCHAR) tiempo_proceso_entrega_dias
+   , (CASE WHEN (CAST(date_diff('minute', (CASE WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (pd.delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) AS INTEGER) <= 0) THEN 'Si' ELSE 'No' END) compromiso_entrega_a_tiempo
+   , CAST((date_diff('minute', (CASE WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) / 60) AS VARCHAR) retraso_horas_compromiso_entrega
+   , CAST((date_diff('minute', (CASE WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2024-04-07 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2024-09-01 00:00:00')) THEN (pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) WHEN ((pd.delivery_compromiso_entrega_date >= TIMESTAMP '2023-04-02 00:00:00') AND (pd.delivery_compromiso_entrega_date < TIMESTAMP '2023-10-01 00:00:00')) THEN (pd.delivery_compromiso_entrega_date - INTERVAL  '4' HOUR) ELSE (pd.delivery_compromiso_entrega_date - INTERVAL  '3' HOUR) END), (CASE WHEN ((ov.fecha_entrega IS NOT NULL) AND (ov.fecha_entrega <> '')) THEN date_parse(ov.fecha_entrega, '%d-%m-%Y %H:%i') ELSE null END)) / 1440) AS VARCHAR) retraso_dias_compromiso_entrega
+   , ROW_NUMBER() OVER (PARTITION BY pd.id_pedido ORDER BY pd.fecha_orden DESC) rn
+   FROM
+     (("base_de_datos_de_la_empresa"."tabla_o_vista" ov
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" pd ON ((REPLACE(ov.id, 'CL-P', 'CL-E') = pd.id_pedido) OR (REPLACE(ov.id, 'CL-P', 'CL-CC') = pd.id_pedido) OR (ov.id = pd.id_pedido)))
+   LEFT JOIN "base_de_datos_de_la_empresa"."tabla_o_vista" aot ON ((REPLACE(ov.id, 'CL-P', 'CL-E') = aot.orderid) OR (REPLACE(ov.id, 'CL-P', 'CL-CC') = pd.id_pedido)))
+   WHERE (ov.estado_pedido = 'Entregado')
+) 
+SELECT DISTINCT *
+FROM
+  (
+   SELECT DISTINCT
+     fecha_orden
+   , dia_fecha_orden
+   , mes_fecha_orden
+   , anio_fecha_orden
+   , id_pedido
+   , tipo_origen
+   , convenio
+   , tipo_orden
+   , categoria
+   , fecha_hora_orden_cl
+   , fecha_ingreso_cierre_pedido
+   , fecha_y_hora_de_validacion_de_receta_cl
+   , fecha_y_hora_de_validacion_de_preparacion_cl
+   , fecha_y_hora_de_termino_de_pickeo_cl
+   , fecha_y_hora_esperando_retiro_cl
+   , fechay_hora_de_entrega_a_delivery_cl
+   , fecha_y_hora_de_retiro_cl
+   , fecha_y_hora_de_entrega_efectiva_cl
+   , fecha_y_hora_compromiso_entrega_cl
+   , considera_delivery
+   , delivery_method
+   , tipo_despacho
+   , estado_actual
+   , delivery_provider
+   , delivery_asignacion
+   , descuento_delivery
+   , zona
+   , region
+   , comuna
+   , paso_por_observacion
+   , fecha_y_hora_observacion_cl
+   , siguiente_estado_a_observacion
+   , razon_observacion
+   , CAST(tiempo_observacion_min AS INTEGER) tiempo_observacion_min
+   , CAST(tiempo_observacion_hr AS INTEGER) tiempo_observacion_hr
+   , CAST(tiempo_proceso_entrega_min AS INTEGER) tiempo_proceso_entrega_min
+   , CAST(tiempo_proceso_entrega_hr AS INTEGER) tiempo_proceso_entrega_hr
+   , CAST(tiempo_proceso_entrega_dias AS INTEGER) tiempo_proceso_entrega_dias
+   , compromiso_entrega_a_tiempo
+   , CAST(retraso_horas_compromiso_entrega AS INTEGER) retraso_horas_compromiso_entrega
+   , CAST(retraso_dias_compromiso_entrega AS INTEGER) retraso_dias_compromiso_entrega
+   , rn
+ , (CASE WHEN (day_of_week(date_parse(fecha_orden, '%d-%m-%Y')) BETWEEN 1 AND 5) THEN 1 ELSE 0 END) dia_habil 
+   
+   FROM
+     calculo_tiempo_fechas_cle_clc
+UNION ALL    SELECT DISTINCT
+     fecha_orden
+   , dia_fecha_orden
+   , mes_fecha_orden
+   , anio_fecha_orden
+   , id_pedido
+   , tipo_origen
+   , convenio
+   , tipo_orden
+   , categoria
+   , fecha_hora_orden_cl
+   , fecha_ingreso_cierre_pedido
+   , fecha_y_hora_de_validacion_de_receta_cl
+   , fecha_y_hora_de_validacion_de_preparacion_cl
+   , fecha_y_hora_de_termino_de_pickeo_cl
+   , fecha_y_hora_esperando_retiro_cl
+   , fechay_hora_de_entrega_a_delivery_cl
+   , fecha_y_hora_de_retiro_cl
+   , fecha_y_hora_de_entrega_efectiva_cl
+   , fecha_y_hora_compromiso_entrega_cl
+   , considera_delivery
+   , delivery_method
+   , tipo_despacho
+   , estado_actual
+   , delivery_provider
+   , delivery_asignacion
+   , descuento_delivery
+   , zona
+   , region
+   , comuna
+   , paso_por_observacion
+   , fecha_y_hora_observacion_cl
+   , siguiente_estado_a_observacion
+   , razon_observacion
+   , CAST(tiempo_observacion_min AS INTEGER) tiempo_observacion_min
+   , CAST(tiempo_observacion_hr AS INTEGER) tiempo_observacion_hr
+   , CAST(tiempo_proceso_entrega_min AS INTEGER) tiempo_proceso_entrega_min
+   , CAST(tiempo_proceso_entrega_hr AS INTEGER) tiempo_proceso_entrega_hr
+   , CAST(tiempo_proceso_entrega_dias AS INTEGER) tiempo_proceso_entrega_dias
+   , compromiso_entrega_a_tiempo
+   , CAST(retraso_horas_compromiso_entrega AS INTEGER) retraso_horas_compromiso_entrega
+   , CAST(retraso_dias_compromiso_entrega AS INTEGER) retraso_dias_compromiso_entrega
+   , rn
+     , (CASE WHEN (day_of_week(date_parse(fecha_orden, '%d-%m-%Y')) BETWEEN 1 AND 5) THEN 1 ELSE 0 END) dia_habil  
+
+   FROM
+     calculo_tiempo_fechas_clp
+)  calculos_completos
+WHERE ((rn = 1) AND (delivery_method <> 'STORE'))
+ORDER BY fecha_hora_orden_cl ASC
+
